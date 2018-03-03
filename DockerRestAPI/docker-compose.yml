@@ -23,7 +23,7 @@ services:
     build: ./brevet 
     container_name: 'brevet'
     volumes:
-      - ./brevet:/todo 
+      - ./brevet:/app
     ports:
       - 5002:5000  # host:container
     depends_on:
