@@ -1,10 +1,13 @@
+# Brevet Flask Application
+# Author: Andrew Werderman
+
 import os
 import flask
 from flask import Flask, redirect, url_for, request, render_template
 from pymongo import MongoClient
+from acp_times import open_time, close_time  # Brevet time calculations
 
 import arrow  # Replacement for datetime, based on moment.js
-import acp_times  # Brevet time calculations
 import config
 import logging
 
@@ -12,9 +15,9 @@ app = Flask(__name__)
 CONFIG = config.configuration()
 app.secret_key = CONFIG.SECRET_KEY
 
-client = MongoClient('db', 27017)
-db = client.brevetdb
-collection = db.brevet
+client = MongoClient('mongodb://mongo:27017/')
+db = client['brevetdb']
+collection = db['brevet']
 
 ###
 # Pages
@@ -27,11 +30,20 @@ def index():
     collection.delete_many({})
     return render_template('calc.html')
 
+
 @app.route('/db')
 def db():
     _controls = collection.find()
-    controls = [control for control in _controls]
+    controls = []
+    for ctrl in _controls:
+        controls.append({
+            'control_km': ctrl['control_km'],
+            'control_location': ctrl['control_location'],
+            'open_time': ctrl['open_time'],
+            'close_time': ctrl['close_time']
+        })
     return render_template('db.html', items=controls)
+
 
 @app.errorhandler(404)
 def page_not_found(error):
@@ -64,43 +76,49 @@ def _calc_times():
     dateTime = '{} {}'.format(start_date, start_time)
     brev_start_time = arrow.get(dateTime, 'YYYY-MM-DD HH:mm')
     
-    open_time = acp_times.open_time(km, brev_dist_km, brev_start_time)
-    close_time = acp_times.close_time(km, brev_dist_km, brev_start_time)
-    result = {"open": open_time.for_json(), "close": close_time.for_json()}
+    # Calculate open and close times
+    open_times = open_time(km, brev_dist_km, brev_start_time)
+    close_times = close_time(km, brev_dist_km, brev_start_time)
+    result = {"open": open_times.for_json(), "close": close_times.for_json()}
+
     return flask.jsonify(result=result)
+
 
 @app.route('/_submit_to_db', methods=['POST'])
 def _submit_to_db():
     brevet = []
     numItems = 0
     collection.delete_many({}) # Clear out all current inputs
-    app.logger.debug("flask submit function")
-    # Collect brevet data from POST
+
+    # Collect brevet data from POST (return type: string)
     control_kms = request.form.getlist('km')
     control_locs = request.form.getlist('location')
-    opening_times = request.form.getlist('open')
-    closing_times = request.form.getlist('close')
+    open_times = request.form.getlist('open')
+    close_times = request.form.getlist('close')
     
-    for i, item in enumerate(opening_times):
+    for i, item in enumerate(open_times):
+        # Invalid input handled on page, OPEN_TIME field will be empty string
         if (item == ''):
             continue
         control_doc = {
-            'control_km': control_kms[i],
+            'control_km': int(control_kms[i]),
             'control_location': control_locs[i],
-            'open_time': opening_times[i],
-            'close_time': closing_times[i]
+            'open_time': open_times[i],
+            'close_time': close_times[i]
         }
         brevet.append(control_doc)
         numItems += 1
+
     if (brevet == []):
         result = {'message': 'Empty Brevet', 'num': numItems}
     else: 
-        sorted_brev = sorted(brevet, key=lambda ctrl: ctrl['control_km'])
-        for item in sorted_brev:
-            app.logger.debug(item)
-        collection.insert(sorted_brev)
+        # Sort brevet and insert it into the db
+        brevet.sort(key=lambda ctrl: ctrl['control_km'])
+        collection.insert(brevet)
         result = {'message': 'A-OK', 'num': numItems}
+
     return flask.jsonify(result=result)
+
 
 @app.route('/_display_db')
 def _display_db():
@@ -115,4 +133,13 @@ if app.debug:
 
 if __name__ == "__main__":
     print("Opening for global access on port {}".format(CONFIG.PORT))
-    app.run(host='0.0.0.0', port=CONFIG.PORT, debug=True)
+    app.run(
+        host='0.0.0.0',
+        port=CONFIG.PORT,
+        debug=True,
+        extra_files = [
+            './templates/calc.html',
+            './templates/db.html'
+        ])
+
+
