@@ -3,7 +3,6 @@ version: '3'  # version of compose format
 services:
   website:
     image: php:apache 
-    container_name: 'brevet_website'
     volumes:
       - ./website:/var/www/html 
     ports:
@@ -13,7 +12,6 @@ services:
 
   api:
     build: ./brevet_api
-    container_name: 'brevet_api'
     volumes:
       - ./brevet_api:/usr/src/app 
     ports:
@@ -23,7 +21,6 @@ services:
 
   brevet:
     build: ./brevet 
-    container_name: 'brevet_server'
     volumes:
       - ./brevet:/app
     ports:
@@ -33,7 +30,6 @@ services:
 
   mongo:
     image: mongo:latest
-    container_name: 'brevet_db'
     volumes: 
       - 'mongo:/data/db'
     ports: 

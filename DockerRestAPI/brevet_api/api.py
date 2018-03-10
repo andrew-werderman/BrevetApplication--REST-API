@@ -18,7 +18,7 @@ database = client['brevetdb']
 
 class Home(Resource):
     def get(self):
-        return {'Error': "These aren't the droids you are looking for."}
+        return ''
 
 class ListBrevet(Resource):
 	def __init__(self):
