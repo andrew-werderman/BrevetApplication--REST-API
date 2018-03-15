@@ -106,7 +106,7 @@ class ListBrevet(Resource):
 
 # Create routes
 api.add_resource(Home, '/')
-api.add_resource(ListBrevet, '/<items>/<resultFormat>', endpoint='get')
+api.add_resource(ListBrevet, '/<items>', '/<items>/<resultFormat>', endpoint='get')
 
 # Run the application
 if __name__ == '__main__':
