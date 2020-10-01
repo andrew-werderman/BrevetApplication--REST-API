@@ -1,4 +1,5 @@
-# Project 6: Brevet time calculator service
+# Project 6: calculator services time by Brevet
+
 
 A simple REST API used to expose the information stored in the Mongo database.
 
